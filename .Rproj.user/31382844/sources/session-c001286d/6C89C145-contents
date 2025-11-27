@@ -1,0 +1,47 @@
+---
+title: "Actividad de Modelos Lineales Generalizados (GLM)"
+author: "Daniel Arteta Salazar"
+date: "2025-11-08"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+base <- read_excel("../datos/base_seguro_15000.xlsx")
+```
+
+## Resumen
+
+## Datos y variables
+
+```{r}
+base <- base %>% janitor::clean_names() # adecuar el nombre de las variables
+size_sum(base) # tamaño de la tabla
+summary(base) # características generales de las variables
+colSums(is.na(base)) # número de valores nulos por variable
+sum(duplicated(base)) # registros duplicados
+```
+
+La base de datos no muestra valores extraños, valores nulos ni filas duplicadas,
+por lo que no se realiza ningún tipo de limpieza a los datos.
+
+## Análisis descriptivo
+
+## Correlaciones y relaciones clave
+
+## Modelado GLM (frecuencia y severidad)
+
+## Prima pura por segmentos
+
+## Recomendaciones tarifarias
+
+## Limitaciones del análisis
+
+## Referencias
+
+**Fuente:** https://rpubs.com/profe_ferro/1365864

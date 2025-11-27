@@ -1,0 +1,122 @@
+---
+title: "Clase Markdown"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    dev: cairo_pdf
+    fig_caption: yes
+  html_document:
+    df_print: paged
+  word_document: default
+date: "2025-10-18"
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+# Título 1
+
+## Título 2
+
+### Título 3
+
+#### Título 4
+
+**Negrilla**
+
+*Cursiva*
+
+-   Elemento 1
+    -   Elemento 1.1
+    -   Elemento 2.1
+-   Elemento 2
+-   Elemento 3
+
+1.  Elemento 1
+    1.  Elemento 1.1
+    2.  Elemento 2.1
+2.  Elemento 2
+3.  Elemento 3
+
+[Google](https://www.google.com)
+
+$\bar{x}=\sum_{i=i}^n\frac{x_i}{n}$
+
+$$\bar{x}=\sum_{i=i}^n\frac{x_i}{n}$$
+
+\begin{equation}
+\bar{x}=\sum_{i=i}^n\frac{x_i}{n}
+\end{equation}
+
+## Gráfico de ejemplo
+
+```{r}
+t <- seq(-10, 10, 0.1)
+y <- t^2
+plot(t, y, type = "l", col = "blue", lwd = 2, 
+     xlab = "Valores de t", ylab = "y = t²",
+     main = "Función Cuadrática")
+grid()
+```
+
+## Otro ejemplo con ggplot2
+
+```{r grafico-ggplot, fig.cap="Gráfico con ggplot2", warning=FALSE}
+library(ggplot2)
+
+datos <- data.frame(
+  t = seq(-10, 10, 0.1),
+  y = seq(-10, 10, 0.1)^2
+)
+
+ggplot(datos, aes(x = t, y = y)) +
+  geom_line(color = "red", size = 1) +
+  geom_area(fill = "orange", alpha = 0.3) +
+  labs(title = "Función Cuadrática con ggplot2",
+       x = "Valores de t",
+       y = "y = t²") +
+  theme_minimal()
+```
+
+## Tabla de ejemplo
+
+```{r tabla-ejemplo}
+datos_tabla <- data.frame(
+  Variable = c("t", "y"),
+  Descripción = c("Variable independiente", "Variable dependiente"),
+  Rango = c("[-10, 10]", "[0, 100]")
+)
+
+knitr::kable(datos_tabla, caption = "Descripción de variables")
+```
+
+### Solución de problemas comunes:
+
+1.  **Si no tienes LaTeX instalado**: Ejecuta en R:
+
+    ``` r
+    install.packages("tinytex")
+    tinytex::install_tinytex()
+    ```
+
+2.  **Si falta ggplot2**:
+
+    ``` r
+    install.packages("ggplot2")
+    ```
+
+3.  **Para verificar la instalación**:
+
+    ``` r
+    tinytex::is_tinytex()
+    ```

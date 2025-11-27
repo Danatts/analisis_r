@@ -1,0 +1,11 @@
+---
+title: "Actividad de visualización"
+author: "Daniel Arteta Salazar"
+date: "2025-11-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

@@ -1,0 +1,134 @@
+# TRANSFORMACIÓN DE DATOS
+# Daniel Alfonso Arteta Salazar
+# Fuente: https://rpubs.com/profe_ferro/1346450
+
+library(dplyr)
+library(tidyr)
+library(janitor)
+
+base <- dplyr::starwars
+
+names(base)
+
+head(base)
+
+base <- base %>% janitor::clean_names()
+
+base <- base %>% select(name, species, height, mass, homeworld, gender)
+
+base <- base %>% mutate(
+  height = as.numeric(height),
+  mass = as.numeric(mass),
+  species = as.factor(species),
+  gender = as.factor(gender)
+)
+
+sum(is.na(base$mass))
+
+base <- base %>% group_by(species) %>%
+  mutate(mass = ifelse(is.na(mass), median(mass, na.rm = TRUE), mass)) %>%
+  ungroup()
+
+base <- base %>% distinct(name, .keep_all = TRUE)
+
+base <- base %>% mutate(
+  imc_aprox = mass / ((height/100)^2),
+  talla_cat = case_when(
+    height < 160 ~ 'baja',
+    height < 180 ~ 'media',
+    TRUE ~ 'alta'
+  )
+)
+
+base_largo <- base %>% select(name, species, height, mass) %>%
+  pivot_longer(cols = c(height, mass), names_to = 'variable', calues_to = 'valor')
+
+mundos <- tibble::tribble(
+  ~homeworld, ~region,
+  'Naboo', 'Mid Rimk',
+  'Tattoine', 'Outer Rim',
+  'Alderaan', 'Core',
+)
+
+base_join <- base %>% left_join(mundos, by = 'homeworld')
+
+resumen <- base_join %>% group_by(region, talla_cat) %>%
+  summarise(
+    n = n(),
+    mediana_imc = median(imc_aprox, na.rm = TRUE)
+  ) %>% arrange(region, talla_cat)
+
+resumen
+
+# ETAPAS DESCRIPTIVA, PRESCRIPTIVA, PREDICTIVA Y PROSPECTIVA
+
+# Etapa descriptiva
+summary(select(base, height, mass, imc_aprox))
+
+conteo_especie <- base %>% count(species, sort = TRUE)
+head(conteo_especie, 10)
+
+desc_por_especie <- base %>%
+  group_by(species) %>%
+  summarise(
+    n = n(),
+    altura_media = mean(height, na.rm = TRUE),
+    masa_media = mean(mass, na.rm = TRUE),
+    imc_mediano = median(imc_aprox, na.rm = TRUE)
+  ) %>%
+  arrange(desc(n))
+
+head(desc_por_especie, 10)
+
+# Etapa prescriptiva
+
+base <- base %>%
+  mutate(
+    talla_traje = case_when(
+      is.na(height) ~ 'Revisar',
+      height < 160 ~ 'S',
+      height >= 160 & height < 180 ~ 'M',
+      height >= 180 ~ 'L',
+    )
+  )
+
+base %>% count(talla_traje, sort = TRUE)
+
+datos <- datos %>%
+  mutate(
+    flag_revision = case_when(
+      is.na(imc_aprox)        ~ TRUE,               # sin IMC, revisar
+      imc_aprox < 15          ~ TRUE,               # demasiado bajo, revisar
+      imc_aprox > 45          ~ TRUE,               # demasiado alto, revisar
+      TRUE                    ~ FALSE               # en rango, sin revisión
+    )
+  )
+
+datos %>% count(flag_revision)
+
+# Etapa predictiva
+dat_modelo <- base %>% filter(!is.na(height), !is.na(mass))
+
+modelo_lm <- lm(mass ~ height, data = dat_modelo)
+
+summary(modelo_lm)
+
+# Etapa prospectiva
+
+altura_promedio_actual <- mean(dat_modelo$height, na.rm = TRUE)
+
+# Definimos un escenario hipotético: +10 cm a la altura promedio
+altura_promedio_escenario <- altura_promedio_actual + 10
+
+# Estimamos la masa esperada en la altura promedio actual (baseline)
+masa_esperada_actual <- predict(modelo_lm, data.frame(height = altura_promedio_actual))
+
+# Estimamos la masa esperada en el escenario (+10 cm)
+masa_esperada_escenario <- predict(modelo_lm, data.frame(height = altura_promedio_escenario))
+
+# Comparamos ambos valores en una tablita
+data.frame(
+  escenario        = c("Actual", "Altura +10cm"),
+  height_promedio  = c(altura_promedio_actual, altura_promedio_escenario),
+  mass_esperada    = c(masa_esperada_actual,  masa_esperada_escenario)
+)

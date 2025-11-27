@@ -1,0 +1,138 @@
+set.seed(123)  # reproducibilidad
+
+library(dplyr)
+
+# Generamos 500 registros
+n <- 500
+siniestros <- tibble(
+  id_poliza   = sample(1000:2000, n, replace = TRUE),   # puede tener duplicados
+  edad        = sample(18:90, n, replace = TRUE),
+  genero      = sample(c("M", "F", NA), n, replace = TRUE, prob = c(0.45, 0.45, 0.10)),
+  valor_aseg  = round(rnorm(n, mean = 100000, sd = 20000), 0),
+  siniestros  = rpois(n, lambda = 0.3),
+  prima       = round(rnorm(n, mean = 3000, sd = 800), 0)
+)
+
+# Introducimos problemas:
+siniestros$edad[sample(1:n, 5)] <- c(-5, 150, 200, -10, 500)  # edades fuera de rango
+siniestros$valor_aseg[sample(1:n, 5)] <- NA                   # valores faltantes
+
+#A. Transformación y diagnóstico de calidad
+
+#Limpia nombres de variables (janitor::clean_names).
+siniestros <- siniestros %>% janitor::clean_names()
+
+#Detecta duplicados en id_poliza. ¿Qué harías con ellos?
+sum(duplicated(siniestros$id_poliza))
+
+siniestros_duplicados <- siniestros %>%
+  filter(duplicated(id_poliza) | duplicated(id_poliza, fromLast = TRUE)) %>% 
+  arrange(desc(id_poliza))
+siniestros_duplicados
+
+#Duplicados generales de siniestro duplicados
+sum(duplicated(siniestros_duplicados))
+
+#Como son personas diferentes, estos se dejan
+
+#Identifica valores faltantes y su porcentaje.
+# % de NA
+round(100 * colMeans(is.na(siniestros)), 2)
+
+#Para los datos faltantes de genero, se etiquerán como
+#SR (Sin reporte), en cuanto a el valor_aseg se imputará
+#con la mediana. 
+
+#Imputación de genero
+siniestros$genero <- ifelse(is.na(siniestros$genero),"SR",
+                            siniestros$genero)
+
+#Imputación de valor asegurado
+siniestros$valor_aseg <- ifelse(is.na(siniestros$valor_aseg),
+                                median(siniestros$valor_aseg, na.rm = T),
+                                siniestros$valor_aseg)
+
+#verificar si hay hay NA
+colSums(is.na(siniestros))
+
+
+#Encuentra edades fuera de rango (<18 o >100).
+siniestros[siniestros$edad<18 | siniestros$edad>100,]
+
+#Excluimos las edades de rango (<18 o >100).
+siniestros <- siniestros[siniestros$edad>=18 & siniestros$edad<=100,]
+
+#B. Etapa Descriptiva
+
+#Calcula la edad promedio y mediana de los asegurados.
+siniestros %>% 
+  summarise(
+    edad_promedio = mean(edad),
+    edad_mediana = median(edad)
+  )
+
+#Calcula el valor asegurado medio y la prima promedio.
+siniestros %>% 
+  summarise(valor_asegurado_promedio = mean(valor_aseg),
+            prima_promedio = mean(prima)
+            )
+
+#Muestra la distribución de siniestros (conteo de cuántos tuvieron 0, 1, 2…).
+siniestros %>% 
+  count(siniestros) %>% 
+  arrange(siniestros)
+
+#C. Etapa Prescriptiva
+
+#Define una regla de riesgo actuarial según edad:
+siniestros <- siniestros %>% 
+  mutate(
+    riesgo_edad = case_when(
+      edad < 30 ~ "riesgo bajo",
+      edad >= 30 & edad <=60 ~ "riesgo medio",
+      edad > 60 ~ "riesgo alto"
+    ) 
+  )
+
+#Cuenta cuántas pólizas hay en cada categoría de riesgo.
+siniestros %>% 
+  count(riesgo_edad)
+
+#Recomienda si se debe ajustar la prima a los de riesgo alto.
+siniestros %>% 
+  group_by(riesgo_edad) %>% 
+  summarise(prima_promedio = mean(prima),
+            prima_mediana = median(prima)
+ 
+)
+
+
+#D. Etaoa predictiva
+
+#Ajusta un modelo sencillo (lm) para predecir la prima en función de edad y siniestros.
+
+mod <- lm(prima ~ edad + siniestros, data = siniestros)
+
+#Interpreta si la edad y el número de siniestros impactan en la prima estimada.
+summary(mod)
+
+#E. Etapa Prospectiva
+#Supón que la aseguradora planea aumentar en 20% el valor asegurado promedio.
+valor_aseg20 <- mean(siniestros$valor_aseg)+mean(siniestros$valor_aseg)*0.20
+
+
+#Usando el modelo predictivo, estima cómo cambiaría la prima promedio en ese escenario.
+
+# Estimamos la prima esperada en el valor asegurado promedio actual
+mod2 <- lm(prima ~ valor_aseg, data = siniestros)
+valor_aseguradoProm <- predict(mod2, data.frame(valor_aseg = mean(siniestros$valor_aseg)))
+
+valor_aseguradoProm20 <- predict(mod2, data.frame(valor_aseg = valor_aseg20))
+
+
+# Comparamos ambos valores en una tablita
+data.frame(
+  escenario        = c("Actual", "Valor_Aseg 20%"),
+  valorAseg_promedio  = c(mean(siniestros$valor_aseg), valor_aseg20),
+  prima_esperada    = c(valor_aseguradoProm,  valor_aseguradoProm20)
+)

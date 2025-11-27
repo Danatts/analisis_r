@@ -1,0 +1,27 @@
+---
+title: "Análisis y Tarificación de Seguros"
+author: "Daniel Arteta Salazar"
+date: "2025-11-29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE}
+# Librerias
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+# Leer datos
+base0 <- read_excel("./base_seguro.xlsx")
+base1 <- read_excel("./base_seguro.xlsx")
+base2 <- read_excel("./base_seguro.xlsx")
+base3 <- read_excel("./base_seguro.xlsx")
+```
+
+

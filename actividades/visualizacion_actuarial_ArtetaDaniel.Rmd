@@ -1,0 +1,325 @@
+---
+title: "Actividad de visualización en R (Actuaría)"
+author: "Daniel Arteta Salazar"
+date: "2025-11-01"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Fuente:https://rpubs.com/profe_ferro/1362995
+
+# Actividad 1
+
+## 1) Paquetes y datos
+
+### 1.1) Carga de paquetes
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(plotly)
+library(ggridges)
+library(rpart)
+library(rpart.plot)
+library(scales)
+```
+
+### 1.2) Generación de una base sintética
+
+Simulamos **frecuencia** y **severidad** por asegurado y año con variables
+típicas para segmentación.
+
+```{r}
+set.seed(2025)
+
+n <- 2500
+
+df <- tibble(
+  anio = sample(2021:2024, n, replace = TRUE, prob = c(0.2, 0.3, 0.3, 0.2)),
+  region = sample(c("Andina","Caribe","Pacífico","Orinoquía"), n,
+                  replace = TRUE, prob = c(0.5,0.2,0.25,0.05)),
+  tipo_vehiculo = sample(c("Sedán","SUV","Moto","Pickup"), n,
+                         replace = TRUE, prob = c(0.4,0.3,0.2,0.1)),
+  edad = pmin(pmax(round(rnorm(n, 42, 12)), 18), 80),
+  genero = sample(c("F","M"), n, replace = TRUE, prob = c(0.45, 0.55)),
+  # Exposición anual (años asegurado): entre 0.2 y 1
+  expo = round(runif(n, 0.2, 1.0), 2)
+) |>
+  mutate(
+    # Frecuencia (Poisson) condicionada por segmentos
+    lambda_base = 0.25 +
+      0.05*(tipo_vehiculo=="Moto") +
+      0.07*(tipo_vehiculo=="Pickup") +
+      0.03*(region=="Caribe") +
+      0.04*(edad < 25) +
+      0.02*(edad > 70),
+    reclamos = rpois(n, lambda = pmax(lambda_base * expo, 0.01)),
+    # Severidad lognormal dependiente del tipo de vehículo
+    mu_sev = 8.0 + 0.25*(tipo_vehiculo %in% c("SUV","Pickup")),
+    sigma_sev = 0.6 + 0.05*(region=="Pacífico"),
+    costo_prom = rlnorm(n, meanlog = mu_sev, sdlog = sigma_sev),
+    # Costo total (severidad por número de reclamos)
+    costo_total = round(costo_prom * pmax(reclamos, 1) * rlnorm(n, 0, 0.2), 0),
+    prima = round( # prima simple basada en frecuencia esperada y severidad típica
+      (lambda_base * exp(mu_sev + (sigma_sev^2)/2)) * 1.15 * expo, 0
+    )
+  ) |>
+  mutate(
+    # Tasa de siniestralidad (loss ratio) simple
+    loss_ratio = costo_total / pmax(prima, 1)
+  )
+
+glimpse(df)
+```
+
+## 2) Gráficos univariados y bivariados
+
+### 2.1) Histograma: *costo_total*
+```{r}
+df |>
+  ggplot(aes(costo_total)) +
+  geom_histogram(bins = 40, color = "white") +
+  scale_x_log10(labels = label_number(scale_cut = cut_si(" "))) +
+  labs(title = "Distribución de costos (log10)",
+       x = "Costo total (log10)",
+       y = "Frecuencia")
+
+```
+
+**Interpretación**:
+
+### 2.2) Densidades: *tipo_vehículo*
+```{r}
+df |>
+  ggplot(aes(costo_total, fill = tipo_vehiculo)) +
+  geom_density(alpha = 0.3) +
+  scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Densidad de costos por tipo de vehículo",
+       x = "Costo total (log10)", y = "Densidad")
+```
+
+**Interpretación**:
+
+### 2.3) Boxplot: *tipo_vehículo* ~ *tipo_vehiculo* (severidad comparada)
+```{r}
+df |>
+  ggplot(aes(tipo_vehiculo, costo_total, fill = tipo_vehiculo)) +
+  geom_boxplot(outlier.alpha = 0.2) +
+  scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Severidad por tipo de vehículo",
+       y = "Costo total (log10)", x = NULL)
+```
+
+**Interpretación**:
+
+### 2.4) Violin plot + puntos: *tipo_vehículo*
+```{r}
+set.seed(1)
+df |>
+  sample_n(800) |>
+  ggplot(aes(tipo_vehiculo, costo_total, fill = tipo_vehiculo)) +
+  geom_violin(trim = FALSE, alpha = 0.2) +
+  geom_jitter(width = 0.1, alpha = 0.25) +
+  scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Distribución intra-segmento (violín + puntos)",
+       y = "Costo total (log10)")
+```
+
+**Interpretación**:
+
+### 2.5) Ridgelines: *region*
+```{r}
+df |>
+  ggplot(aes(costo_total, region)) +
+  geom_density_ridges(rel_min_height = 0.01, scale = 1.2) +
+  scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Perfiles de severidad por región (ridgelines)",
+       x = "Costo total (log10)", y = NULL)
+```
+
+**Interpretación**:
+
+### 2.6) Dispersión: *edad* vs *costo_total* + suavizado
+```{r}
+df |>
+  ggplot(aes(edad, costo_total, color = tipo_vehiculo)) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(se = FALSE, method = "loess") +
+  scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Edad vs Costo total (con suavizado)",
+       x = "Edad", y = "Costo total (log10)")
+```
+
+**Interpretación**:
+
+### 2.7) Burbuja: *edad* vs *costo_total* con tamaño = *expo*
+```{r}
+df |>
+  ggplot(aes(edad, costo_total, size = expo, color = region)) +
+  geom_point(alpha = 0.4) +
+  scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Burbuja: edad vs costo (tamaño = exposición)",
+       x = "Edad", y = "Costo total (log10)", size = "Exposición")
+```
+
+**Interpretación**:
+
+### 2.8) Barras con IC: frecuencia media por *tipo_vehículo*
+```{r}
+df |>
+  group_by(tipo_vehiculo) |>
+  summarise(mean_rec = mean(reclamos), se = sd(reclamos)/sqrt(n())) |>
+  ggplot(aes(fct_reorder(tipo_vehiculo, mean_rec), mean_rec)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = mean_rec - 1.96*se, ymax = mean_rec + 1.96*se), width = 0.2) +
+  coord_flip() +
+  labs(title = "Frecuencia media de reclamos por tipo",
+       x = NULL, y = "Reclamos por año (promedio)")
+```
+
+**Interpretación**:
+
+### 2.9) Series de tiempo: *conto_total* por *anio* (mediana)
+```{r}
+df |>
+  group_by(anio) |>
+  summarise(mediana = median(costo_total)) |>
+  ggplot(aes(anio, mediana)) +
+  geom_line() +
+  geom_point() +
+  scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Evolución de severidad (mediana)",
+       x = "Año", y = "Costo mediano (log10)")
+```
+
+**Interpretación**:
+
+## 3) Mapas de calor
+
+### 3.1) Mapa de calor: *severidad* (mediana) por *edad_grupo* y *tipo_vehiculo*
+```{r}
+df_hm <- df |>
+  mutate(edad_grupo = cut(edad, breaks = c(18,25,35,45,55,65,80),
+                          labels = c("18-25","26-35","36-45","46-55","56-65","66-80"),
+                          include.lowest = TRUE)) |>
+  group_by(edad_grupo, tipo_vehiculo) |>
+  summarise(mediana = median(costo_total), .groups = "drop")
+
+df_hm |>
+  ggplot(aes(tipo_vehiculo, edad_grupo, fill = mediana)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Heatmap de severidad mediana",
+       x = "Tipo de vehículo", y = "Grupo de edad", fill = "Mediana")
+```
+
+**Interpretación**:
+
+### 3.2) Mapa de calor de *loss_ratio* (promedio) por *region* y *tipo_vehiculo*
+```{r}
+df |>
+  group_by(region, tipo_vehiculo) |>
+  summarise(lr = mean(loss_ratio), .groups = "drop") |>
+  ggplot(aes(tipo_vehiculo, region, fill = lr)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c() +
+  labs(title = "Mapa de calor de loss ratio promedio",
+       x = "Tipo de vehículo", y = "Región", fill = "LR")
+```
+
+**Interpretación**:
+
+## 4) Correlaciones y Pareto
+
+### 4.1) Mapa de calor de correlaciones (numéricas)
+```{r}
+num_vars <- df |>
+  transmute(edad, expo, reclamos, costo_total = log10(costo_total + 1), prima = log10(prima + 1), loss_ratio)
+
+corr <- cor(num_vars, use = "pairwise.complete.obs")
+
+tibble(
+  var1 = rep(rownames(corr), times = ncol(corr)),
+  var2 = rep(colnames(corr), each = nrow(corr)),
+  r = as.vector(corr)
+) |>
+  ggplot(aes(var1, var2, fill = r)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(limits = c(-1,1)) +
+  coord_equal() +
+  labs(title = "Mapa de calor de correlaciones", x = NULL, y = NULL, fill = "r")
+```
+
+**Interpretación**:
+
+### 4.2) Curva de Pareto de costos por póliza (Top drivers)
+```{r}
+df |>
+  arrange(desc(costo_total)) |>
+  mutate(pct = costo_total / sum(costo_total),
+         acum = cumsum(pct),
+         idx = row_number()) |>
+  ggplot(aes(idx, acum)) +
+  geom_line() +
+  geom_hline(yintercept = 0.8, linetype = "dashed") +
+  labs(title = "Curva de Pareto: contribución acumulada del costo",
+       x = "Pólizas ordenadas por costo", y = "Acumulado")
+```
+
+**Interpretación**:
+
+## 5) Árbol de decisión (segmentación visual)
+
+```{r}
+p80 <- quantile(df$costo_total, 0.80)
+df_tree <- df |>
+  mutate(alto_costo = if_else(costo_total > p80, "SI","NO")) |>
+  select(alto_costo, edad, region, tipo_vehiculo, expo, reclamos, prima)
+
+set.seed(99)
+fit <- rpart(alto_costo ~ ., data = df_tree, method = "class",
+             control = rpart.control(cp = 0.01, minbucket = 100))
+
+rpart.plot(fit, type = 2, extra = 104, box.palette = "RdYlGn", branch.lty = 2, shadow.col = "gray")
+```
+
+**Interpretación**:
+
+## 7) Versión interactiva
+
+### 7.1) Dipersión: *edad* vs *costo* y tipo de vehículo
+```{r}
+p1 <- df |>
+  ggplot(aes(edad, costo_total, color = tipo_vehiculo)) +
+  geom_point(alpha = 0.5) +
+  scale_y_log10(labels = scales::label_number(scale_cut = scales::cut_si(" "))) +
+  labs(title = "Interactivo: Edad vs Costo por tipo de vehículo",
+       x = "Edad", y = "Costo total (log10)")
+
+ggplotly(p1)
+```
+
+**Interpretación**:
+
+### 7.2) Mapa de calor: *loss_ratio*
+```{r}
+p2 <- df |>
+  group_by(region, tipo_vehiculo) |>
+  summarise(lr = mean(loss_ratio), .groups = "drop") |>
+  ggplot(aes(tipo_vehiculo, region, fill = lr)) +
+  geom_tile(color = "white") +
+  labs(title = "Interactivo: Loss ratio promedio",
+       x = "Tipo de vehículo", y = "Región", fill = "LR")
+
+ggplotly(p2)
+```
+
+**Interpretación**:
+
+# Actividad 2

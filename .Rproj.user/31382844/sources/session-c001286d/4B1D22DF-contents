@@ -1,0 +1,215 @@
+---
+title: "Actividad de Modelos Lineales Generalizados (GLM)"
+author: "Daniel Arteta Salazar"
+date: "2025-11-08"
+output:
+  pdf_document:
+    toc: true
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+\newpage
+
+# Resumen
+\newpage
+
+# 1. Datos y variables
+
+## 1.1. Importar librerías
+
+```{r message=FALSE}
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+```
+
+## 1.2. Preparación de los datos
+
+```{r}
+# Importar base de datos
+base <- read_excel("../datos/base_seguro_15000.xlsx")
+
+# Adecuar el nombre de las variables
+base <- base %>% janitor::clean_names() 
+
+# Tamaño de la tabla
+dim(base)
+
+# Resumen de las variables
+summary(base)
+
+# Registros duplicados
+sum(duplicated(base))
+
+# Número de valores nulos por variable
+colSums(is.na(base))
+
+# Agregamos una variable categórica por edad
+base$grupo_etario <- cut(base$edad,
+                     breaks = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+                     labels = c("1-10", "11-20", "21-30", "31-40", "41-50", 
+                               "51-60", "61-70", "71-80", "81-90", "91-100"),
+                     right = TRUE)
+```
+
+## 1.3. Resumen de la sección
+
+No se encuentran valores anormales en las variables, registros duplicados ni valores nulos, por lo que no se realiza ninguna modificación a los datos.
+
+# 2. Análisis descriptivo
+
+## 2.1. Análisis univariado
+
+### 2.1.1. Edad
+
+```{r}
+summary(base$edad)
+ggplot(base, aes(x = edad)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white", alpha = 0.7) +
+  labs(title = "Distribución de Edades por Decenas",
+       x = "Edad",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+### 2.1.1. Sexo
+
+```{r}
+# Tabla de frecuencia
+base %>%
+  count(sexo) %>%
+  mutate(
+    proporcion = n / sum(n),
+    porcentaje = proporcion * 100
+  ) %>%
+  rename(frecuencia = n)
+
+# Gráfico de barras
+ggplot(base, aes(x = sexo)) +
+  geom_bar()
+```
+
+### 2.1.2. Tipo
+
+```{r}
+# Tabla de frecuencia
+base %>%
+  count(tipo) %>%
+  mutate(
+    proporcion = n / sum(n),
+    porcentaje = proporcion * 100
+  ) %>%
+  rename(frecuencia = n)
+
+# Gráfico de barras
+ggplot(base, aes(x = tipo)) +
+  geom_bar()
+```
+
+### 2.1.3. Región
+
+```{r}
+# Tabla de frecuencia
+base %>%
+  count(region) %>%
+  mutate(
+    proporcion = n / sum(n),
+    porcentaje = proporcion * 100
+  ) %>%
+  rename(frecuencia = n)
+
+# Gráfico de barras
+ggplot(base, aes(x = region)) +
+  geom_bar()
+```
+
+### 2.1.3. Reclamo
+
+```{r}
+# Tabla de frecuencia
+base %>%
+  count(reclamos) %>%
+  mutate(
+    proporcion = n / sum(n),
+    porcentaje = proporcion * 100
+  ) %>%
+  rename(frecuencia = n)
+
+# Gráfico de barras
+ggplot(base, aes(x = reclamos)) +
+  geom_bar()
+```
+
+### 2.1.4. Costo esperado
+
+```{r}
+summary(base$costo_esperado)
+ggplot(base, aes(x = "", y = costo_esperado)) +
+  geom_violin(fill = "lightblue", color = "darkblue", alpha = 0.7, trim = FALSE) +
+  geom_boxplot(width = 0.1, fill = "white", alpha = 0.5, outlier.color = "red") +
+  labs(title = "Distribución del Costo Esperado - Violín Plot",
+       subtitle = "Combinación de violín + boxplot",
+       y = "Costo Esperado ($)",
+       x = "") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5))
+
+```
+
+## 2.2. Análisis bivariado
+
+### 2.2.1. Edad y Reclamos
+
+```{r}
+base %>%
+  group_by(tipo, region) %>%
+  summarise(
+    media_reclamos = mean(reclamos),
+    n = n(),
+    .groups = 'drop'
+  )
+```
+
+### 2.2.2. Edad y Costo esperado
+
+```{r}
+ggplot(base, aes(x = edad, y = costo_esperado, color = tipo)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Costo Esperado vs Edad por Tipo", 
+       x = "Edad", y = "Costo Esperado") +
+  theme_minimal()
+```
+
+### 2.2.3. Tipo y Región
+
+```{r}
+base %>%
+  group_by(region, tipo) %>%
+  summarise(
+    media_reclamos = mean(reclamos),
+    media_costo = mean(costo_esperado),
+    n = n(),
+    .groups = 'drop'
+  )
+```
+
+### 2.2.4. Sexo en Reclamos y Costo esperado
+
+```{r}
+base %>%
+  group_by(sexo) %>%
+  summarise(
+    media_reclamos = mean(reclamos),
+    media_costo = mean(costo_esperado),
+    n = n()
+  )
+```
+
+# 3. Correlaciones y relaciones clave
+# 4. Modelado GLM (frecuencia y severidad)
+# 5. Prima pura por segmentos
+# 6. Recomendaciones tarifarias
+# 7. Limitaciones del análisis

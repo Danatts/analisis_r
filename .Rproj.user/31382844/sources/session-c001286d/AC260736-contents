@@ -1,0 +1,13 @@
+# RUTA B — CRISP-DM
+
+## FASE 1: Bussines Understanding
+El objetivo del presente trabajo busca explicar si el género y la edad de los
+asegurados define la prima del seguro.
+
+## FASE 2: Entender los datos
+
+## FASE 3: Preparación de los datos
+- Se observa que las variables prima y edad tienen valores negativos en la base
+  original. Se determinó por eliminarlos de la base a trabajar dado que solo son
+  cuatro registros, por lo que se espera que no afecte a los resultados del 
+  estudio.
