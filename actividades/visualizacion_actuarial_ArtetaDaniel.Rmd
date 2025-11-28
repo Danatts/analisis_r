@@ -3,8 +3,6 @@ title: "Actividad de visualización en R (Actuaría)"
 author: "Daniel Arteta Salazar"
 date: "2025-11-01"
 output:
-  html_document:
-    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -12,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 Fuente:https://rpubs.com/profe_ferro/1362995
-
+  
 # Actividad 1
 
 ## 1) Paquetes y datos
@@ -92,7 +90,7 @@ df |>
 
 ```
 
-**Interpretación**:
+**Interpretación**: Se ve una distribución altamente asimétrica con mayoría de costos bajos y una cola larga de pocos siniestros de alto costo. 
 
 ### 2.2) Densidades: *tipo_vehículo*
 ```{r}
@@ -104,7 +102,7 @@ df |>
        x = "Costo total (log10)", y = "Densidad")
 ```
 
-**Interpretación**:
+**Interpretación**: Las motos muestran una distribución de costos más concentrada en valores bajos, mientras que SUV y Pickup presentan colas más pesadas hacia costos altos, indicando mayor severidad.
 
 ### 2.3) Boxplot: *tipo_vehículo* ~ *tipo_vehiculo* (severidad comparada)
 ```{r}
@@ -116,7 +114,7 @@ df |>
        y = "Costo total (log10)", x = NULL)
 ```
 
-**Interpretación**:
+**Interpretación**: Los vehículos SUV y Pickup presentan mayor severidad promedio y variabilidad en costos, mientras las motos muestran costos más bajos y consistentes.
 
 ### 2.4) Violin plot + puntos: *tipo_vehículo*
 ```{r}
@@ -131,7 +129,7 @@ df |>
        y = "Costo total (log10)")
 ```
 
-**Interpretación**:
+**Interpretación**: Se ve una mayor densidad de costos bajos en motos y dispersión en SUV y Pickup, mostrando asimetría y valores atípicos en estos últimos segmentos.
 
 ### 2.5) Ridgelines: *region*
 ```{r}
@@ -143,7 +141,7 @@ df |>
        x = "Costo total (log10)", y = NULL)
 ```
 
-**Interpretación**:
+**Interpretación**: La región Pacífico muestra una distribución de costos más extendida hacia valores altos, sugiriendo mayor severidad comparada con otras regiones.
 
 ### 2.6) Dispersión: *edad* vs *costo_total* + suavizado
 ```{r}
@@ -156,7 +154,7 @@ df |>
        x = "Edad", y = "Costo total (log10)")
 ```
 
-**Interpretación**:
+**Interpretación**: Se observa mayor costo en conductores jóvenes (menores de 25 años) y un incremento gradual después de los 70 años, siendo más pronunciado en Moto.
 
 ### 2.7) Burbuja: *edad* vs *costo_total* con tamaño = *expo*
 ```{r}
@@ -168,7 +166,7 @@ df |>
        x = "Edad", y = "Costo total (log10)", size = "Exposición")
 ```
 
-**Interpretación**:
+**Interpretación**: La gráfica es está muy saturada, por lo que es difícil inferir alguna conclusión sobre esta.
 
 ### 2.8) Barras con IC: frecuencia media por *tipo_vehículo*
 ```{r}
@@ -183,7 +181,7 @@ df |>
        x = NULL, y = "Reclamos por año (promedio)")
 ```
 
-**Interpretación**:
+**Interpretación**: Las motos y pickups presentan la mayor frecuencia de reclamos, consistentes con los parámetros simulados de mayor lambda_base para estos tipos.
 
 ### 2.9) Series de tiempo: *conto_total* por *anio* (mediana)
 ```{r}
@@ -198,7 +196,7 @@ df |>
        x = "Año", y = "Costo mediano (log10)")
 ```
 
-**Interpretación**:
+**Interpretación**: La severidad mediana muestra una tendencia creciente sostenida a lo largo de los años tras una caida en 2022, indicando inflación de costos de siniestros en el periodo.
 
 ## 3) Mapas de calor
 
@@ -219,7 +217,7 @@ df_hm |>
        x = "Tipo de vehículo", y = "Grupo de edad", fill = "Mediana")
 ```
 
-**Interpretación**:
+**Interpretación**: Los SUV y Pickup muestran mayor severidad en todos los grupos etarios, mientras las motos mantienen costos consistentemente más bajos independientemente de la edad. El grupo de jóvenes en Pickup es el que mayor severidad tiene con diferencia al resto.
 
 ### 3.2) Mapa de calor de *loss_ratio* (promedio) por *region* y *tipo_vehiculo*
 ```{r}
@@ -233,7 +231,7 @@ df |>
        x = "Tipo de vehículo", y = "Región", fill = "LR")
 ```
 
-**Interpretación**:
+**Interpretación**: Las motos en la región Orinoquía muestran el loss ratio más elevado, indicando sub-preciación significativa en este segmento específico.
 
 ## 4) Correlaciones y Pareto
 
@@ -256,7 +254,7 @@ tibble(
   labs(title = "Mapa de calor de correlaciones", x = NULL, y = NULL, fill = "r")
 ```
 
-**Interpretación**:
+**Interpretación**: Fuerte correlación positiva entre costo_total y reclamos, mientras loss_ratio muestra relación inversa con prima, sugiriendo posibles desajustes tarifarios.
 
 ### 4.2) Curva de Pareto de costos por póliza (Top drivers)
 ```{r}
@@ -272,7 +270,7 @@ df |>
        x = "Pólizas ordenadas por costo", y = "Acumulado")
 ```
 
-**Interpretación**:
+**Interpretación**: El 20% de las pólizas más costosas concentran aproximadamente el 80% del costo total, confirmando el principio de Pareto en la siniestralidad.
 
 ## 5) Árbol de decisión (segmentación visual)
 
@@ -323,3 +321,93 @@ ggplotly(p2)
 **Interpretación**:
 
 # Actividad 2
+
+## 1) Facet comparativo
+
+Gráfico: Severidad (costo_total) por tipo_vehiculo facetado por anio.
+
+```{r}
+df |>
+  ggplot(aes(tipo_vehiculo, costo_total, fill = tipo_vehiculo)) +
+  geom_boxplot(outlier.alpha = 0.2) +
+  scale_y_log10(labels = label_number(scale_cut = cut_si(" "))) +
+  facet_wrap(~ anio) +
+  labs(title = "Severidad por tipo de vehículo y año", x = NULL, y = "Costo (log10)")
+```
+
+**Preguntas a responder:**
+
+- ¿Qué tipos presentan mayor severidad consistentemente?
+
+SUV y Pickup muestran los costos más altos en todos los años.
+
+- ¿Hay algún año donde cambia la relación entre segmentos? ¿Por qué es relevante esto para ajustar primas?
+
+No se observan cambios significativos en el ranking de severidad entre segmentos a través del tiempo. Esto es relevante porque indica estabilidad en los patrones de costos, permitiendo mantener la estructura de primas sin reordenamientos mayores.
+
+- ¿Qué segmento sería candidato a aumento de tarifa y cuál a descuento?
+
+SUV y Pickup serían candidatos a aumentos de prima, mientras que las Motos podrían mantener o reducir tarifas dado su consistente menor severidad.
+
+## 2) Heatmap de severidad
+
+Gráfico: Severidad mediana por tipo_vehiculo × grupo de edad.
+
+```{r}
+df_hm <- df |>
+  mutate(edad_grupo = cut(edad, breaks = c(18,25,35,45,55,65,80),
+                          labels = c("18-25","26-35","36-45","46-55","56-65","66-80"),
+                          include.lowest = TRUE)) |>
+  group_by(edad_grupo, tipo_vehiculo) |>
+  summarise(mediana = median(costo_total), .groups = "drop")
+
+df_hm |>
+  ggplot(aes(tipo_vehiculo, edad_grupo, fill = mediana)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(labels = label_number(scale_cut = cut_si(" "))) +
+  labs(title = "Mapa de severidad mediana", x = "Tipo de vehículo", y = "Grupo de edad")
+  
+```
+
+**Preguntas a responder:**
+
+- ¿Qué combinación edad–vehículo es la más riesgosa?
+
+Conductores jóvenes (18-25 años) con Pickup muestran la mayor severidad mediana.
+
+- Si tuvieras que aplicar un deducible más alto, ¿a qué combinación se lo aplicas?
+
+Aplicaría a SUV y Pickup en el grupo de 18-25 años, por presentar los costos más elevados.
+
+- ¿Qué grupo parece estar subsidiando a otro?
+
+os sedanes y motos en todos los grupos de edad (especialmente conductores maduros de 36-55 años) están subsidiando a los SUV y pickups de conductores jóvenes, al tener menor severidad pero probablemente primas no diferenciadas suficiente.
+
+## 3) Pareto de costos
+
+Gráfico: ¿Cuántas pólizas explican el 80% del costo total?
+
+```{r}
+df |>
+  arrange(desc(costo_total)) |>
+  mutate(acum = cumsum(costo_total) / sum(costo_total),
+         idx = row_number()) |>
+  ggplot(aes(idx, acum)) +
+  geom_line(color="steelblue") +
+  geom_hline(yintercept = 0.8, linetype = "dashed") +
+  labs(title = "Curva de Pareto del costo", x = "Pólizas ordenadas", y = "Acumulado")
+```
+
+**Preguntas a responder:**
+
+- ¿Cuántas pólizas generan el 80% del costo total?
+
+ Aproximadamente 500 pólizas (20% del total) concentran el 80% del costo total.
+
+- ¿Qué dice eso sobre el riesgo de eventos extremos?
+
+Confirma alta concentración del riesgo donde pocos siniestros grandes impactan significativamente los resultados, característico de distribuciones con cola pesada.
+
+- ¿Se justifica un contrato de reaseguro? ¿Cuál (quota share / stop-loss)? 
+
+Sí, completamente. Sería más adecuado un stop-loss por evento o agregado para proteger contra siniestros individuales catastróficos, más que un quota share que cede toda la cartera uniformemente.
